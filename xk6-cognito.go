@@ -48,7 +48,7 @@ func contains(array []string, element string) bool {
 	return false
 }
 
-func (r *Cognito) Connect(ctx context.Context, region string) (*Client, error) {
+func (r *Cognito) Connect(region string) (*Client, error) {
 	regionAws := config.WithRegion(region)
 	// cred := config.WithCredentialsProvider(aws.AnonymousCredentials{})
 
@@ -63,7 +63,7 @@ func (r *Cognito) Connect(ctx context.Context, region string) (*Client, error) {
 	}
 
 	client := Client{
-		ctx:    ctx,
+		ctx:    context.TODO(),
 		client: cip.NewFromConfig(cfg),
 	}
 
