@@ -1,6 +1,5 @@
 package cognito
 
-
 import (
 	"context"
 	"fmt"
@@ -13,16 +12,14 @@ import (
 	cip "github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider/types"
 
-
 	// "go.k6.io/k6/js/common"
-    "go.k6.io/k6/js/modules"
+	"go.k6.io/k6/js/modules"
 )
-
 
 // Register the extension on module initialization, available to
 // import from JS as "k6/x/cognito".
 func init() {
-    modules.Register("k6/x/cognito", new(Cognito))
+	modules.Register("k6/x/cognito", new(Cognito))
 }
 
 // Cognito is the k6 extension for a Cognito client.
@@ -30,20 +27,17 @@ type Cognito struct{}
 
 // Client is the Cognito client wrapper.
 type Client struct {
-	ctx      context.Context
+	ctx context.Context
 	// https://github.com/aws/aws-sdk-go-v2/blob/main/service/cognitoidentityprovider/api_client.go
-    client *cip.Client
-	
+	client *cip.Client
 }
 type keyValue map[string]interface{}
-
 
 type AuthOptionalParams struct {
 	// https://stackoverflow.com/questions/2032149/optional-parameters-in-go
 	clientMetadata map[string]string
-	cognitoSecret *string
-  }
-
+	cognitoSecret  *string
+}
 
 func contains(array []string, element string) bool {
 	for _, item := range array {
@@ -54,8 +48,7 @@ func contains(array []string, element string) bool {
 	return false
 }
 
-func (r *Cognito) Connect(ctx context.Context, region string ) (*Client, error) {
-
+func (r *Cognito) Connect(ctx context.Context, region string) (*Client, error) {
 	regionAws := config.WithRegion(region)
 	// cred := config.WithCredentialsProvider(aws.AnonymousCredentials{})
 
@@ -63,28 +56,24 @@ func (r *Cognito) Connect(ctx context.Context, region string ) (*Client, error) 
 	// https://github.com/aws/aws-sdk-go-v2
 	cfg, err := config.LoadDefaultConfig(
 		context.TODO(),
-		regionAws ,
+		regionAws,
 	)
-
 	if err != nil {
 		return nil, err
 	}
 
 	client := Client{
-		ctx:           ctx,
+		ctx:    ctx,
 		client: cip.NewFromConfig(cfg),
-		
 	}
- 
 
 	return &client, nil
 }
 
-
-func (c *Client) Auth(  username string, password string, poolId string, clientId string, params AuthOptionalParams ) (keyValue, error) {
+func (c *Client) Auth(username string, password string, poolId string, clientId string, params AuthOptionalParams) (keyValue, error) {
 	// configure cognito srp
 	// https://github.com/alexrudd/cognito-srp
-	csrp, _  := cognitosrp.NewCognitoSRP(username, password, poolId, clientId, params.cognitoSecret)
+	csrp, _ := cognitosrp.NewCognitoSRP(username, password, poolId, clientId, params.cognitoSecret)
 
 	// initiate auth
 	resp, err := c.client.InitiateAuth(c.ctx, &cip.InitiateAuthInput{
@@ -93,7 +82,6 @@ func (c *Client) Auth(  username string, password string, poolId string, clientI
 		AuthParameters: csrp.GetAuthParams(),
 		ClientMetadata: params.clientMetadata,
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +89,6 @@ func (c *Client) Auth(  username string, password string, poolId string, clientI
 	// respond to password verifier challenge
 	if resp.ChallengeName == types.ChallengeNameTypePasswordVerifier {
 		challengeResponses, err := csrp.PasswordVerifierChallenge(resp.ChallengeParameters, time.Now())
-
 		if err != nil {
 			return nil, err
 		}
@@ -118,9 +105,9 @@ func (c *Client) Auth(  username string, password string, poolId string, clientI
 		// data := make(keyValue, 3)
 
 		data := keyValue{
-			"AccessToken":           *resp.AuthenticationResult.AccessToken,
-			"IdToken": *resp.AuthenticationResult.IdToken ,
-			"RefreshToken" : *resp.AuthenticationResult.RefreshToken,
+			"AccessToken":  *resp.AuthenticationResult.AccessToken,
+			"IdToken":      *resp.AuthenticationResult.IdToken,
+			"RefreshToken": *resp.AuthenticationResult.RefreshToken,
 		}
 
 		// data["AccessToken"] := *resp.AuthenticationResult.AccessToken
@@ -133,6 +120,4 @@ func (c *Client) Auth(  username string, password string, poolId string, clientI
 		// other challenges await...
 		return nil, fmt.Errorf("Challenge %s is not supported", resp.ChallengeName)
 	}
-
-	
 }
