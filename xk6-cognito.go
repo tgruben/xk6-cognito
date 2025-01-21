@@ -5,12 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	cognitosrp "github.com/alexrudd/cognito-srp/v4"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	cip "github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
-	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider/types"
+	cipTypes "github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider/types"
 
 	// "go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modules"
@@ -70,54 +67,34 @@ func (r *Cognito) Connect(region string) (*Client, error) {
 	return &client, nil
 }
 
-func (c *Client) Auth(username string, password string, poolId string, clientId string, params AuthOptionalParams) (keyValue, error) {
-	// configure cognito srp
-	// https://github.com/alexrudd/cognito-srp
-	csrp, _ := cognitosrp.NewCognitoSRP(username, password, poolId, clientId, params.cognitoSecret)
+func (c *Client) Auth(username string, password string, clientId string) (keyValue, error) {
 
 	// initiate auth
-	resp, err := c.client.InitiateAuth(c.ctx, &cip.InitiateAuthInput{
-		AuthFlow:       types.AuthFlowTypeUserSrpAuth,
-		ClientId:       aws.String(csrp.GetClientId()),
-		AuthParameters: csrp.GetAuthParams(),
-		ClientMetadata: params.clientMetadata,
-	})
+	input := &cip.InitiateAuthInput{
+		AuthFlow: cipTypes.AuthFlowTypeUserPasswordAuth,
+		AuthParameters: map[string]string{
+			"USERNAME": username,
+			"PASSWORD": password,
+		},
+		ClientId: &clientId,
+	}
+
+	// Call Cognito to initiate auth
+	resp, err := c.client.InitiateAuth(context.TODO(), input)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initiate auth: %v", err)
 	}
 
-	// respond to password verifier challenge
-	if resp.ChallengeName == types.ChallengeNameTypePasswordVerifier {
-		challengeResponses, err := csrp.PasswordVerifierChallenge(resp.ChallengeParameters, time.Now())
-		if err != nil {
-			return nil, err
-		}
-
-		resp, err := c.client.RespondToAuthChallenge(c.ctx, &cip.RespondToAuthChallengeInput{
-			ChallengeName:      types.ChallengeNameTypePasswordVerifier,
-			ChallengeResponses: challengeResponses,
-			ClientId:           aws.String(csrp.GetClientId()),
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		// data := make(keyValue, 3)
-
-		data := keyValue{
-			"AccessToken":  *resp.AuthenticationResult.AccessToken,
-			"IdToken":      *resp.AuthenticationResult.IdToken,
-			"RefreshToken": *resp.AuthenticationResult.RefreshToken,
-		}
-
-		// data["AccessToken"] := *resp.AuthenticationResult.AccessToken
-		// data["IdToken"] := *resp.AuthenticationResult.IdToken
-		// data["RefreshToken"] := *resp.AuthenticationResult.RefreshToken
-
-		return data, nil
-
-	} else {
-		// other challenges await...
-		return nil, fmt.Errorf("Challenge %s is not supported", resp.ChallengeName)
+	if resp.AuthenticationResult == nil {
+		return nil, fmt.Errorf("authentication result was nil, check if the flow is correct or if additional challenges are required")
 	}
+
+	data := keyValue{
+		"AccessToken":  *resp.AuthenticationResult.AccessToken,
+		"IdToken":      *resp.AuthenticationResult.IdToken,
+		"RefreshToken": *resp.AuthenticationResult.RefreshToken,
+	}
+
+	return data, nil
+
 }
