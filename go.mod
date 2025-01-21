@@ -1,4 +1,4 @@
-module github.com/nate20i/xk6-cognito
+module github.com/tgruben/xk6-cognito
 
 go 1.20
 
