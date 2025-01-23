@@ -1,6 +1,6 @@
 # xk6-cognito
 
-An example module for https://k6.io/ to get a cognito access token using USER_SRP_AUTH flow.
+An example module for https://k6.io/ to get a cognito access token using USER_PASSWORD_AUTH flow.
 
 See:
 - to create k6 extension: https://github.com/grafana/xk6-sql/blob/master/sql.go , https://k6.io/blog/extending-k6-with-xk6/#building-the-extension-with-xk6 
@@ -13,7 +13,7 @@ See:
 
 ``` sh
 go install go.k6.io/xk6/cmd/xk6@latest
-xk6 build master   --with github.com/tmieulet/xk6-cognito
+xk6 build master   --with github.com/tgruben/xk6-cognito
 
 ./k6 run --vus 1 --duration 2s /scripts/examples/loadTest.js
 
@@ -23,7 +23,7 @@ xk6 build master   --with github.com/tmieulet/xk6-cognito
 
 
 ``` sh
-git clone https://github.com/tmieulet/xk6-cognito.git && cd xk6-cognito
+git clone https://github.com/tgruben/xk6-cognito.git && cd xk6-cognito
 docker run --rm -v $(pwd):/scripts -it --entrypoint sh golang:1.17-alpine
 
 cd /scripts/
